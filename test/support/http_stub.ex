@@ -1,0 +1,182 @@
+defmodule Dowser.Opensearch.HTTPStub do
+  @moduledoc """
+  One-shot TCP server for tests: accepts a single HTTP request, replies with a
+  canned response, and hands the parsed request back through a `Task`.
+  """
+
+  @ok_body ~s({"acknowledged":true})
+  @ok_response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@ok_body)}\r\n\r\n" <>
+                 @ok_body
+
+  @doc "A canned `200` JSON response (`#{@ok_body}`)."
+  def ok_response, do: @ok_response
+
+  @doc "A canned body-less response with the given status (for `HEAD` checks)."
+  def head_response(200), do: "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+  def head_response(404), do: "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
+
+  @doc "Context options pointing at the stub server."
+  def context(port), do: [endpoint: "http://127.0.0.1:#{port}"]
+
+  @doc """
+  Starts a server that answers every request until the test ends, returning
+  the port it listens on.
+
+  `handler` is called with each parsed request — the same shape `start_server/1`
+  awaits — in whichever process is serving that connection, and returns the raw
+  response to send back.
+
+  Unlike `Dowser.Client.HTTP.Stub`, which lives in the process dictionary of
+  the process that makes the request, this is a real socket: it answers
+  requests made from anywhere, which is what a `Dowser.Opensearch.Streamer`
+  walking several slices concurrently needs.
+  """
+  def start_pool(handler) when is_function(handler, 1) do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, backlog: 128])
+    {:ok, port} = :inet.port(listen)
+
+    pid = spawn_link(fn -> accept_loop(listen, handler) end)
+    ExUnit.Callbacks.on_exit(fn -> Process.exit(pid, :kill) end)
+
+    port
+  end
+
+  @doc """
+  Builds a `200` JSON response for `start_pool/1`.
+  """
+  def json_response(term) do
+    body = JSON.encode!(term)
+
+    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(body)}\r\n\r\n" <>
+      body
+  end
+
+  @doc """
+  Builds a response with an arbitrary status and JSON body, for the error paths.
+  """
+  def json_response(status, reason, term) do
+    body = JSON.encode!(term)
+
+    "HTTP/1.1 #{status} #{reason}\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(body)}\r\n\r\n" <>
+      body
+  end
+
+  @doc """
+  Starts the server; returns `{port, task}`. Await the task to get the parsed
+  request as `%{method: ..., path: ..., headers: ..., body: ...}`.
+  """
+  def start_server(response \\ @ok_response) do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+
+    server =
+      Task.async(fn ->
+        {:ok, socket} = :gen_tcp.accept(listen, 5000)
+        raw = recv_until(socket, "", "\r\n\r\n")
+        [head, rest] = String.split(raw, "\r\n\r\n", parts: 2)
+        body = rest <> recv_exact(socket, content_length(head) - byte_size(rest))
+        :ok = :gen_tcp.send(socket, response)
+        :gen_tcp.close(socket)
+        :gen_tcp.close(listen)
+        parse(head, body)
+      end)
+
+    {port, server}
+  end
+
+  ## Private functions
+
+  defp accept_loop(listen, handler) do
+    case :gen_tcp.accept(listen) do
+      {:ok, socket} ->
+        spawn_link(fn -> serve(socket, handler) end)
+        accept_loop(listen, handler)
+
+      {:error, :closed} ->
+        :ok
+    end
+  end
+
+  # One connection may carry several requests: `:httpc` keeps them alive.
+  defp serve(socket, handler) do
+    case read_request(socket) do
+      {:ok, request} ->
+        :ok = :gen_tcp.send(socket, handler.(request))
+        serve(socket, handler)
+
+      :closed ->
+        :gen_tcp.close(socket)
+    end
+  end
+
+  defp read_request(socket) do
+    with {:ok, raw} <- recv_until_headers(socket, ""),
+         [head, rest] <- String.split(raw, "\r\n\r\n", parts: 2) do
+      body = rest <> recv_exact(socket, content_length(head) - byte_size(rest))
+
+      {:ok, parse(head, body)}
+    else
+      _other ->
+        :closed
+    end
+  end
+
+  defp recv_until_headers(socket, acc) do
+    if String.contains?(acc, "\r\n\r\n") do
+      {:ok, acc}
+    else
+      case :gen_tcp.recv(socket, 0, 5000) do
+        {:ok, data} ->
+          recv_until_headers(socket, acc <> data)
+
+        {:error, _reason} ->
+          :closed
+      end
+    end
+  end
+
+  defp recv_until(socket, acc, marker) do
+    if String.contains?(acc, marker) do
+      acc
+    else
+      {:ok, data} = :gen_tcp.recv(socket, 0, 5000)
+      recv_until(socket, acc <> data, marker)
+    end
+  end
+
+  defp recv_exact(_socket, n) when n <= 0, do: ""
+
+  defp recv_exact(socket, n) do
+    {:ok, data} = :gen_tcp.recv(socket, n, 5000)
+    data
+  end
+
+  defp content_length(head) do
+    head
+    |> String.split("\r\n")
+    |> Enum.find_value(0, fn line ->
+      case String.split(line, ":", parts: 2) do
+        [key, value] ->
+          if String.downcase(String.trim(key)) == "content-length" do
+            String.to_integer(String.trim(value))
+          end
+
+        _other ->
+          nil
+      end
+    end)
+  end
+
+  defp parse(head, body) do
+    [request_line | header_lines] = String.split(head, "\r\n")
+    [method, path, _version] = String.split(request_line, " ", parts: 3)
+
+    headers =
+      Map.new(header_lines, fn line ->
+        [key, value] = String.split(line, ":", parts: 2)
+        {String.downcase(String.trim(key)), String.trim(value)}
+      end)
+
+    %{method: method, path: path, headers: headers, body: body}
+  end
+end
