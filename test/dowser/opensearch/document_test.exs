@@ -1,0 +1,576 @@
+defmodule Dowser.Opensearch.DocumentTest do
+  use ExUnit.Case, async: false
+
+  alias Dowser.Opensearch.BulkError
+  alias Dowser.Opensearch.Document
+  alias Dowser.Opensearch.HTTPStub
+
+  defmodule UpcaseCodec do
+    @behaviour Dowser.Opensearch.Codec
+
+    @impl true
+    def load(value, %{"type" => "text"}) when is_binary(value), do: String.upcase(value)
+    def load(value, field), do: Dowser.Opensearch.Codec.load(value, field)
+
+    @impl true
+    def dump(value, field), do: Dowser.Opensearch.Codec.dump(value, field)
+  end
+
+  defmodule ExclaimCodec do
+    @behaviour Dowser.Opensearch.Codec
+
+    @impl true
+    def load(value, %{"type" => "text"}) when is_binary(value), do: value <> "!"
+    def load(value, field), do: Dowser.Opensearch.Codec.load(value, field)
+
+    @impl true
+    def dump(value, field), do: Dowser.Opensearch.Codec.dump(value, field)
+  end
+
+  defp context(port), do: HTTPStub.context(port)
+  defp start_server(response \\ HTTPStub.ok_response()), do: HTTPStub.start_server(response)
+
+  # A gateway that answers every request 504 — ambiguous: the request may have
+  # reached OpenSearch and been applied.
+  defp counting_gateway do
+    {:ok, requests} = Agent.start_link(fn -> 0 end)
+
+    port =
+      HTTPStub.start_pool(fn _request ->
+        Agent.update(requests, &(&1 + 1))
+        "HTTP/1.1 504 Gateway Timeout\r\nContent-Length: 0\r\n\r\n"
+      end)
+
+    {port, requests}
+  end
+
+  defp json_response(body) do
+    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(body)}\r\n\r\n" <>
+      body
+  end
+
+  describe "single documents" do
+    test "index/3 POSTs the document to /{index}/_doc" do
+      {port, server} = start_server()
+
+      assert {:ok, _} = Document.index(%{"title" => "hi"}, "posts", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "POST"
+      assert req.path == "/posts/_doc"
+      assert req.body == ~s({"title":"hi"})
+    end
+
+    test "index/3 targets /{index}/_doc/{id} when an id is given" do
+      {port, server} = start_server()
+
+      assert {:ok, _} =
+               Document.index(%{"title" => "hi"}, "posts", id: "1", context: context(port))
+
+      assert Task.await(server).path == "/posts/_doc/1"
+    end
+
+    test "index/3 requires an index" do
+      assert {:error, %ArgumentError{} = error} = Document.index(%{}, nil)
+      assert Exception.message(error) =~ "requires an index"
+    end
+
+    test "index!/3 raises when the index is missing" do
+      assert_raise ArgumentError, ~r/requires an index/, fn ->
+        Document.index!(%{}, nil)
+      end
+    end
+
+    test "create/4 POSTs the document to /{index}/_create/{id}" do
+      {port, server} = start_server()
+
+      assert {:ok, _} =
+               Document.create(%{"title" => "hi"}, "posts", "1", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "POST"
+      assert req.path == "/posts/_create/1"
+      assert req.body == ~s({"title":"hi"})
+    end
+
+    test "get/3 GETs /{index}/_doc/{id}" do
+      {port, server} = start_server()
+
+      assert {:ok, _} = Document.get("posts", "1", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "GET"
+      assert req.path == "/posts/_doc/1"
+    end
+
+    test "delete/3 DELETEs /{index}/_doc/{id}" do
+      {port, server} = start_server()
+
+      assert {:ok, _} = Document.delete("posts", "1", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "DELETE"
+      assert req.path == "/posts/_doc/1"
+    end
+
+    test "exists/3 HEADs /{index}/_doc/{id} and returns result tuples" do
+      {port, server} = start_server(HTTPStub.head_response(200))
+      assert {:ok, true} = Document.exists("posts", "1", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "HEAD"
+      assert req.path == "/posts/_doc/1"
+
+      {port, server} = start_server(HTTPStub.head_response(404))
+      assert {:ok, false} = Document.exists("posts", "1", context: context(port))
+      Task.await(server)
+    end
+
+    test "exists?/3 returns the bare boolean" do
+      {port, server} = start_server(HTTPStub.head_response(200))
+      assert Document.exists?("posts", "1", context: context(port)) == true
+      Task.await(server)
+    end
+
+    test "get_source/3 GETs /{index}/_source/{id}" do
+      {port, server} = start_server()
+
+      assert {:ok, _} = Document.get_source("posts", "1", context: context(port))
+      assert Task.await(server).path == "/posts/_source/1"
+    end
+
+    test "source_exists/3 HEADs /{index}/_source/{id}" do
+      {port, server} = start_server(HTTPStub.head_response(404))
+
+      assert {:ok, false} = Document.source_exists("posts", "1", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "HEAD"
+      assert req.path == "/posts/_source/1"
+    end
+
+    test "update/4 POSTs the body to /{index}/_update/{id}" do
+      {port, server} = start_server()
+
+      assert {:ok, _} =
+               Document.update(%{"doc" => %{"title" => "hi"}}, "posts", "1",
+                 context: context(port)
+               )
+
+      req = Task.await(server)
+      assert req.method == "POST"
+      assert req.path == "/posts/_update/1"
+      assert req.body == ~s({"doc":{"title":"hi"}})
+    end
+  end
+
+  describe "type casting via Codec" do
+    @mapping %{
+      "properties" => %{
+        "published_at" => %{"type" => "date", "format" => "strict_date_optional_time"}
+      }
+    }
+
+    test "get/3 casts the response _source against the index mapping" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+
+      body =
+        ~s({"_index":"posts","_id":"1","_source":{"published_at":"2026-08-11T00:00:00.000Z","title":"hi"}})
+
+      {port, server} = start_server(json_response(body))
+
+      assert {:ok, doc} =
+               Document.get("posts", "1", context: HTTPStub.context_with_casting(port))
+
+      assert doc["_source"]["published_at"] == ~U[2026-08-11 00:00:00.000Z]
+      assert doc["_source"]["title"] == "hi"
+
+      Task.await(server)
+    end
+
+    test "get_source/3 casts the bare source against the index mapping" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+
+      body = ~s({"published_at":"2026-08-11T00:00:00.000Z","title":"hi"})
+      {port, server} = start_server(json_response(body))
+
+      assert {:ok, source} =
+               Document.get_source("posts", "1", context: HTTPStub.context_with_casting(port))
+
+      assert source["published_at"] == ~U[2026-08-11 00:00:00.000Z]
+      assert source["title"] == "hi"
+
+      Task.await(server)
+    end
+
+    test "mget/2 casts every doc's _source" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+
+      body =
+        ~s({"docs":[{"_index":"posts","_id":"1","_source":{"published_at":"2026-08-11T00:00:00.000Z"}}]})
+
+      {port, server} = start_server(json_response(body))
+
+      assert {:ok, %{"docs" => [doc]}} =
+               Document.mget(%{"ids" => ["1"]},
+                 index: "posts",
+                 context: HTTPStub.context_with_casting(port)
+               )
+
+      assert doc["_source"]["published_at"] == ~U[2026-08-11 00:00:00.000Z]
+
+      Task.await(server)
+    end
+
+    test "index/3 casts the document's values before sending" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+      {port, server} = start_server()
+
+      document = %{"published_at" => ~U[2026-08-11 00:00:00Z], "title" => "hi"}
+
+      assert {:ok, _} =
+               Document.index(document, "posts", context: HTTPStub.context_with_casting(port))
+
+      assert Task.await(server).body ==
+               ~s({"published_at":"2026-08-11T00:00:00Z","title":"hi"})
+    end
+
+    test "update/4 casts only the doc sub-map" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+      {port, server} = start_server()
+
+      body = %{"doc" => %{"published_at" => ~U[2026-08-11 00:00:00Z]}}
+
+      assert {:ok, _} =
+               Document.update(body, "posts", "1", context: HTTPStub.context_with_casting(port))
+
+      assert Task.await(server).body == ~s({"doc":{"published_at":"2026-08-11T00:00:00Z"}})
+    end
+
+    test "update/4 casts an atom-keyed doc, and a doc_as_upsert's upsert too" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+      {port, server} = start_server()
+
+      body = %{
+        doc: %{"published_at" => ~U[2026-08-11 00:00:00Z]},
+        upsert: %{"published_at" => ~U[2026-08-12 00:00:00Z]}
+      }
+
+      assert {:ok, _} =
+               Document.update(body, "posts", "1", context: HTTPStub.context_with_casting(port))
+
+      assert Task.await(server).body ==
+               ~s({"doc":{"published_at":"2026-08-11T00:00:00Z"},) <>
+                 ~s("upsert":{"published_at":"2026-08-12T00:00:00Z"}})
+    end
+
+    test "update/4 leaves a scripted body alone" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+      {port, server} = start_server()
+
+      body = %{"script" => %{"source" => "ctx._source.views++"}}
+
+      assert {:ok, _} =
+               Document.update(body, "posts", "1", context: HTTPStub.context_with_casting(port))
+
+      assert Task.await(server).body == ~s({"script":{"source":"ctx._source.views++"}})
+    end
+
+    test ":codec resolves request > context > config > the default" do
+      HTTPStub.start_mapping_cacher!(%{"properties" => %{"title" => %{"type" => "text"}}})
+
+      body = ~s({"_index":"posts","_source":{"title":"hello"}})
+
+      title = fn opts ->
+        {port, server} = start_server(json_response(body))
+        context = HTTPStub.context_with_casting(port)
+        {:ok, doc} = Document.get("posts", "1", Keyword.put(opts, :context, context))
+        Task.await(server)
+
+        doc["_source"]["title"]
+      end
+
+      # 4. the built-in codec leaves `text` alone.
+      assert title.([]) == "hello"
+
+      # 3. the application environment.
+      Application.put_env(:dowser_opensearch, :codec, UpcaseCodec)
+      on_exit(fn -> Application.delete_env(:dowser_opensearch, :codec) end)
+      assert title.([]) == "HELLO"
+
+      # 2. the context's own decoder, over the application environment.
+      {port, server} = start_server(json_response(body))
+
+      assert {:ok, doc} =
+               Document.get("posts", "1",
+                 context: [
+                   endpoint: "http://127.0.0.1:#{port}",
+                   decoder: {Dowser.Opensearch.Codec, codec: ExclaimCodec}
+                 ]
+               )
+
+      Task.await(server)
+      assert doc["_source"]["title"] == "hello!"
+
+      # 1. the request, over both.
+      assert title.(codec: ExclaimCodec) == "hello!"
+
+      {port, server} = start_server(json_response(body))
+
+      assert {:ok, doc} =
+               Document.get("posts", "1",
+                 codec: ExclaimCodec,
+                 context: [
+                   endpoint: "http://127.0.0.1:#{port}",
+                   decoder: {Dowser.Opensearch.Codec, codec: UpcaseCodec}
+                 ]
+               )
+
+      Task.await(server)
+      assert doc["_source"]["title"] == "hello!"
+    end
+
+    test "without a :decoder/:encoder configured, nothing is cast either way" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+
+      response = ~s({"_index":"posts","_source":{"published_at":"2026-08-11T00:00:00.000Z"}})
+      {port, server} = start_server(json_response(response))
+
+      assert {:ok, doc} =
+               Document.index(%{"published_at" => ~U[2026-08-11 00:00:00Z]}, "posts",
+                 context: context(port)
+               )
+
+      assert doc["_source"]["published_at"] == "2026-08-11T00:00:00.000Z"
+
+      # `DateTime` encodes itself as ISO 8601 through `JSON`, mapping or not.
+      assert Task.await(server).body == ~s({"published_at":"2026-08-11T00:00:00Z"})
+    end
+
+    test "bulk/2 casts request payload values and response item _source values" do
+      HTTPStub.start_mapping_cacher!(@mapping)
+
+      response_body =
+        ~s({"items":[{"index":{"_index":"posts","_id":"1"}}]})
+
+      {port, server} = start_server(json_response(response_body))
+
+      operations = [
+        %{"index" => %{"_id" => "1"}},
+        %{"published_at" => ~U[2026-08-11 00:00:00Z]}
+      ]
+
+      assert {:ok, _} =
+               Document.bulk(operations,
+                 index: "posts",
+                 context: HTTPStub.context_with_casting(port)
+               )
+
+      req = Task.await(server)
+      assert req.body == ~s({"index":{"_id":"1"}}\n{"published_at":"2026-08-11T00:00:00Z"}\n)
+    end
+  end
+
+  describe "multi-document" do
+    test "bulk/2 POSTs NDJSON to /_bulk" do
+      {port, server} = start_server()
+
+      operations = [%{"index" => %{"_id" => "1"}}, %{"title" => "hi"}]
+      assert {:ok, _} = Document.bulk(operations, context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "POST"
+      assert req.path == "/_bulk"
+      assert req.headers["content-type"] == "application/x-ndjson"
+      assert req.body == ~s({"index":{"_id":"1"}}\n{"title":"hi"}\n)
+    end
+
+    test "bulk/2 targets an index" do
+      {port, server} = start_server()
+
+      assert {:ok, _} = Document.bulk([%{}, %{}], index: "posts", context: context(port))
+      assert Task.await(server).path == "/posts/_bulk"
+    end
+
+    test "bulk/2 returns a BulkError when an item failed" do
+      body =
+        ~s({"took":5,"errors":true,"items":[) <>
+          ~s({"index":{"_index":"posts","_id":"1","status":201}},) <>
+          ~s({"index":{"_index":"posts","_id":"2","status":429,"error":) <>
+          ~s({"type":"es_rejected_execution_exception","reason":"rejected"}}},) <>
+          ~s({"index":{"_index":"posts","_id":"3","status":400,"error":) <>
+          ~s({"type":"mapper_parsing_exception","reason":"failed to parse"}}}]})
+
+      {port, _server} = start_server(json_response(body))
+
+      operations = [
+        %{"index" => %{"_id" => "1"}},
+        %{"title" => "one"},
+        %{"index" => %{"_id" => "2"}},
+        %{"title" => "two"},
+        %{"index" => %{"_id" => "3"}},
+        %{"title" => "three"}
+      ]
+
+      assert {:error, %BulkError{} = error} =
+               Document.bulk(operations, index: "posts", context: context(port))
+
+      assert error.succeeded == 1
+      assert error.took == 5
+      assert [rejected, malformed] = error.failed
+
+      assert %{
+               position: 1,
+               action: "index",
+               index: "posts",
+               id: "2",
+               status: 429,
+               operation: [%{"index" => %{"_id" => "2"}}, %{"title" => "two"}]
+             } = rejected
+
+      assert rejected.error.type == "es_rejected_execution_exception"
+      assert %{position: 2, status: 400} = malformed
+
+      # Only the rejected item is worth resubmitting — the malformed one would
+      # fail again, and the successful one would be written twice.
+      assert error.retryable == [%{"index" => %{"_id" => "2"}}, %{"title" => "two"}]
+
+      assert Exception.message(error) ==
+               "2 of 3 bulk items failed: 1 × es_rejected_execution_exception, " <>
+                 "1 × mapper_parsing_exception"
+    end
+
+    test "bulk/2 reads an atom-keyed response body" do
+      body =
+        ~s({"errors":true,"items":[{"delete":{"_index":"posts","_id":"1","status":503,) <>
+          ~s("error":{"type":"unavailable_shards_exception","reason":"primary unavailable"}}}]})
+
+      {port, _server} = start_server(json_response(body))
+      operations = [%{"delete" => %{"_id" => "1"}}]
+
+      assert {:error, %BulkError{} = error} =
+               Document.bulk(operations,
+                 index: "posts",
+                 context: context(port) ++ [keys: :atoms]
+               )
+
+      assert [%{action: "delete", status: 503, id: "1"}] = error.failed
+      assert error.retryable == [%{"delete" => %{"_id" => "1"}}]
+      assert error.succeeded == 0
+    end
+
+    test "bulk/2 returns {:ok, body} when every item succeeded" do
+      body = ~s({"took":3,"errors":false,"items":[{"index":{"_index":"posts","status":201}}]})
+      {port, _server} = start_server(json_response(body))
+
+      assert {:ok, %{"errors" => false}} =
+               Document.bulk([%{"index" => %{}}, %{"title" => "hi"}],
+                 index: "posts",
+                 context: context(port)
+               )
+    end
+
+    test "bulk!/2 raises the BulkError a partial failure returns" do
+      body =
+        ~s({"errors":true,"items":[{"create":{"_index":"posts","_id":"1","status":409,) <>
+          ~s("error":{"type":"version_conflict_engine_exception","reason":"already exists"}}}]})
+
+      {port, _server} = start_server(json_response(body))
+
+      assert_raise BulkError,
+                   "1 of 1 bulk items failed: 1 × version_conflict_engine_exception",
+                   fn ->
+                     Document.bulk!([%{"create" => %{"_id" => "1"}}, %{"title" => "hi"}],
+                       index: "posts",
+                       context: context(port)
+                     )
+                   end
+    end
+
+    test "bulk/2 is not retried after an ambiguous failure, unless every action names an id" do
+      {port, requests} = counting_gateway()
+
+      # A 504 may mean the bulk was applied and the answer lost.
+      assert {:error, _} =
+               Document.bulk([%{"index" => %{}}, %{"title" => "hi"}],
+                 index: "posts",
+                 context: context(port),
+                 retry: [base_delay_ms: 1, max_delay_ms: 1]
+               )
+
+      assert Agent.get(requests, & &1) == 1
+
+      Agent.update(requests, fn _ -> 0 end)
+
+      # Every action replaces a document at an id of its own: re-sending it
+      # writes exactly what the first attempt would have.
+      assert {:error, _} =
+               Document.bulk([%{"index" => %{"_id" => "1"}}, %{"title" => "hi"}],
+                 index: "posts",
+                 context: context(port),
+                 retry: [base_delay_ms: 1, max_delay_ms: 1]
+               )
+
+      assert Agent.get(requests, & &1) == 3
+    end
+
+    test "mget/2 is retried after an ambiguous failure — it writes nothing" do
+      {port, requests} = counting_gateway()
+
+      assert {:error, _} =
+               Document.mget(%{"ids" => ["1"]},
+                 index: "posts",
+                 context: context(port),
+                 retry: [base_delay_ms: 1, max_delay_ms: 1]
+               )
+
+      assert Agent.get(requests, & &1) == 3
+    end
+
+    test "mget/2 POSTs the body to /{index}/_mget" do
+      {port, server} = start_server()
+
+      assert {:ok, _} =
+               Document.mget(%{"ids" => ["1", "2"]}, index: "posts", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "POST"
+      assert req.path == "/posts/_mget"
+      assert req.body == ~s({"ids":["1","2"]})
+    end
+  end
+
+  describe "term vectors" do
+    test "termvectors/3 POSTs the body to /{index}/_termvectors" do
+      {port, server} = start_server()
+
+      assert {:ok, _} =
+               Document.termvectors(%{"doc" => %{"title" => "hi"}}, "posts",
+                 context: context(port)
+               )
+
+      req = Task.await(server)
+      assert req.method == "POST"
+      assert req.path == "/posts/_termvectors"
+    end
+
+    test "termvectors/3 targets /{index}/_termvectors/{id} when an id is given" do
+      {port, server} = start_server()
+
+      assert {:ok, _} = Document.termvectors(%{}, "posts", id: "1", context: context(port))
+      assert Task.await(server).path == "/posts/_termvectors/1"
+    end
+
+    test "mtermvectors/2 POSTs the body to /{index}/_mtermvectors" do
+      {port, server} = start_server()
+
+      assert {:ok, _} =
+               Document.mtermvectors(%{"ids" => ["1"]}, index: "posts", context: context(port))
+
+      req = Task.await(server)
+      assert req.method == "POST"
+      assert req.path == "/posts/_mtermvectors"
+      assert req.body == ~s({"ids":["1"]})
+    end
+  end
+end
