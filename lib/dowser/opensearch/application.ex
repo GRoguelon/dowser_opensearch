@@ -13,12 +13,12 @@ defmodule Dowser.Opensearch.Application do
 
   @impl true
   def start(_type, _args) do
-    Supervisor.start_link(children(), @supervisor_opts)
+    mapping_cacher_opts = Application.get_env(:dowser_opensearch, :mapping_cacher_opts, [])
+
+    children = [
+      {Dowser.Opensearch.MappingCacher, mapping_cacher_opts}
+    ]
+
+    Supervisor.start_link(children, @supervisor_opts)
   end
-
-  ## Private functions
-
-  # `Dowser.Opensearch.MappingCacher` joins this list with the type-casting
-  # layer; nothing in the transport foundation needs supervising.
-  defp children, do: []
 end

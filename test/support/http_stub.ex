@@ -19,6 +19,29 @@ defmodule Dowser.Opensearch.HTTPStub do
   def context(port), do: [endpoint: "http://127.0.0.1:#{port}"]
 
   @doc """
+  Context options pointing at the stub server, with `Dowser.Opensearch.Codec`
+  wired in as both passes.
+  """
+  def context_with_casting(port) do
+    [
+      endpoint: "http://127.0.0.1:#{port}",
+      decoder: Dowser.Opensearch.Codec,
+      encoder: Dowser.Opensearch.Codec
+    ]
+  end
+
+  @doc """
+  Starts `Dowser.Opensearch.MappingCacher` for the duration of the calling test
+  (via `start_supervised!/1`), returning `mapping` for every `{context, index}`
+  lookup.
+  """
+  def start_mapping_cacher!(mapping) do
+    ExUnit.Callbacks.start_supervised!(
+      {Dowser.Opensearch.MappingCacher, fetch: fn _context, _index -> {:ok, mapping} end}
+    )
+  end
+
+  @doc """
   Starts a server that answers every request until the test ends, returning
   the port it listens on.
 
