@@ -101,6 +101,11 @@ defmodule DowserOpensearch.MixProject do
           Dowser.Opensearch.Codec.GeoPoint,
           Dowser.Opensearch.Codec.IP,
           Dowser.Opensearch.Codec.Range
+        ],
+        Errors: [
+          Dowser.Opensearch.Error,
+          Dowser.Opensearch.BulkError,
+          Dowser.Opensearch.MappingError
         ]
       ]
     ]
