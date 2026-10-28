@@ -1,7 +1,7 @@
-defmodule Dowser.Opensearch.ErrorTest do
+defmodule Dowser.OpenSearch.ErrorTest do
   use ExUnit.Case, async: true
 
-  alias Dowser.Opensearch.Error
+  alias Dowser.OpenSearch.Error
 
   describe "new/2" do
     test "extracts :type and :reason from a standard error body" do

@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.DanglingIndicesTest do
+defmodule Dowser.OpenSearch.DanglingIndicesTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.DanglingIndices
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
+  alias Dowser.OpenSearch.DanglingIndices
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
 
   @uuid "zmM4e0JtBkeUjiHD-MihPQ"
 
@@ -27,7 +27,7 @@ defmodule Dowser.Opensearch.DanglingIndicesTest do
       assert req.path == "/_dangling"
     end
 
-    test "wraps a non-2xx response in a Dowser.Opensearch.Error" do
+    test "wraps a non-2xx response in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} = DanglingIndices.list(context: context(port))

@@ -1,10 +1,10 @@
-defmodule Dowser.Opensearch.HelpersTest do
+defmodule Dowser.OpenSearch.HelpersTest do
   use ExUnit.Case, async: true
 
   alias Dowser.Client.Response
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.Helpers
-  alias Dowser.Opensearch.MappingError
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.Helpers
+  alias Dowser.OpenSearch.MappingError
 
   describe "parse_result/1" do
     test "returns the body for any 2xx status" do

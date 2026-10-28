@@ -1,8 +1,8 @@
-defmodule DowserOpensearch.MixProject do
+defmodule Dowser.OpenSearch.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/GRoguelon/dowser_opensearch"
-  @version "0.1.0"
+  @version "0.2.0"
 
   def project do
     [
@@ -15,7 +15,7 @@ defmodule DowserOpensearch.MixProject do
       aliases: aliases(),
       dialyzer: dialyzer(),
       package: package(),
-      name: "Dowser.Opensearch",
+      name: "Dowser.OpenSearch",
       description: "Elixir client for the OpenSearch API, built on top of Dowser.Client",
       source_url: @source_url,
       docs: docs()
@@ -26,7 +26,7 @@ defmodule DowserOpensearch.MixProject do
   def application do
     [
       extra_applications: [:crypto, :logger],
-      mod: {Dowser.Opensearch.Application, []}
+      mod: {Dowser.OpenSearch.Application, []}
     ]
   end
 
@@ -73,39 +73,39 @@ defmodule DowserOpensearch.MixProject do
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
       groups_for_modules: [
         API: [
-          Dowser.Opensearch.Alias,
-          Dowser.Opensearch.Cat,
-          Dowser.Opensearch.Cluster,
-          Dowser.Opensearch.DanglingIndices,
-          Dowser.Opensearch.DataStream,
-          Dowser.Opensearch.Document,
-          Dowser.Opensearch.Index,
-          Dowser.Opensearch.IndexSettings,
-          Dowser.Opensearch.IndexStateManagement,
-          Dowser.Opensearch.IndexTemplate,
-          Dowser.Opensearch.Info,
-          Dowser.Opensearch.List,
-          Dowser.Opensearch.Mappings,
-          Dowser.Opensearch.Reindex,
-          Dowser.Opensearch.Repository,
-          Dowser.Opensearch.Search,
-          Dowser.Opensearch.Streamer,
-          Dowser.Opensearch.Target
+          Dowser.OpenSearch.Alias,
+          Dowser.OpenSearch.Cat,
+          Dowser.OpenSearch.Cluster,
+          Dowser.OpenSearch.DanglingIndices,
+          Dowser.OpenSearch.DataStream,
+          Dowser.OpenSearch.Document,
+          Dowser.OpenSearch.Index,
+          Dowser.OpenSearch.IndexSettings,
+          Dowser.OpenSearch.IndexStateManagement,
+          Dowser.OpenSearch.IndexTemplate,
+          Dowser.OpenSearch.Info,
+          Dowser.OpenSearch.List,
+          Dowser.OpenSearch.Mappings,
+          Dowser.OpenSearch.Reindex,
+          Dowser.OpenSearch.Repository,
+          Dowser.OpenSearch.Search,
+          Dowser.OpenSearch.Streamer,
+          Dowser.OpenSearch.Target
         ],
         "Type casting": [
-          Dowser.Opensearch.Codec,
-          Dowser.Opensearch.MappingCacher,
-          Dowser.Opensearch.Codec.Binary,
-          Dowser.Opensearch.Codec.Date,
-          Dowser.Opensearch.Codec.DateRange,
-          Dowser.Opensearch.Codec.GeoPoint,
-          Dowser.Opensearch.Codec.IP,
-          Dowser.Opensearch.Codec.Range
+          Dowser.OpenSearch.Codec,
+          Dowser.OpenSearch.MappingCacher,
+          Dowser.OpenSearch.Codec.Binary,
+          Dowser.OpenSearch.Codec.Date,
+          Dowser.OpenSearch.Codec.DateRange,
+          Dowser.OpenSearch.Codec.GeoPoint,
+          Dowser.OpenSearch.Codec.IP,
+          Dowser.OpenSearch.Codec.Range
         ],
         Errors: [
-          Dowser.Opensearch.Error,
-          Dowser.Opensearch.BulkError,
-          Dowser.Opensearch.MappingError
+          Dowser.OpenSearch.Error,
+          Dowser.OpenSearch.BulkError,
+          Dowser.OpenSearch.MappingError
         ]
       ]
     ]

@@ -1,4 +1,4 @@
-defmodule Dowser.Opensearch.HTTPStub do
+defmodule Dowser.OpenSearch.HTTPStub do
   @moduledoc """
   One-shot TCP server for tests: accepts a single HTTP request, replies with a
   canned response, and hands the parsed request back through a `Task`.
@@ -19,25 +19,25 @@ defmodule Dowser.Opensearch.HTTPStub do
   def context(port), do: [endpoint: "http://127.0.0.1:#{port}"]
 
   @doc """
-  Context options pointing at the stub server, with `Dowser.Opensearch.Codec`
+  Context options pointing at the stub server, with `Dowser.OpenSearch.Codec`
   wired in as both passes.
   """
   def context_with_casting(port) do
     [
       endpoint: "http://127.0.0.1:#{port}",
-      decoder: Dowser.Opensearch.Codec,
-      encoder: Dowser.Opensearch.Codec
+      decoder: Dowser.OpenSearch.Codec,
+      encoder: Dowser.OpenSearch.Codec
     ]
   end
 
   @doc """
-  Starts `Dowser.Opensearch.MappingCacher` for the duration of the calling test
+  Starts `Dowser.OpenSearch.MappingCacher` for the duration of the calling test
   (via `start_supervised!/1`), returning `mapping` for every `{context, index}`
   lookup.
   """
   def start_mapping_cacher!(mapping) do
     ExUnit.Callbacks.start_supervised!(
-      {Dowser.Opensearch.MappingCacher, fetch: fn _context, _index -> {:ok, mapping} end}
+      {Dowser.OpenSearch.MappingCacher, fetch: fn _context, _index -> {:ok, mapping} end}
     )
   end
 
@@ -51,7 +51,7 @@ defmodule Dowser.Opensearch.HTTPStub do
 
   Unlike `Dowser.Client.HTTP.Stub`, which lives in the process dictionary of
   the process that makes the request, this is a real socket: it answers
-  requests made from anywhere, which is what a `Dowser.Opensearch.Streamer`
+  requests made from anywhere, which is what a `Dowser.OpenSearch.Streamer`
   walking several slices concurrently needs.
   """
   def start_pool(handler) when is_function(handler, 1) do

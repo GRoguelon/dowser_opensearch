@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.CatTest do
+defmodule Dowser.OpenSearch.CatTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Cat
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
+  alias Dowser.OpenSearch.Cat
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
 
   @rows ~s([{"index":"posts","health":"green","docs.count":"42"}])
   @rows_response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@rows)}\r\n\r\n" <>
@@ -176,7 +176,7 @@ defmodule Dowser.Opensearch.CatTest do
   end
 
   describe "errors" do
-    test "wraps a non-2xx response in a Dowser.Opensearch.Error" do
+    test "wraps a non-2xx response in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} = Cat.nodes(context: context(port))

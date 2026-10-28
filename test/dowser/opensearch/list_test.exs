@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.ListTest do
+defmodule Dowser.OpenSearch.ListTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.List, as: ListApi
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.List, as: ListApi
 
   @page ~s({"next_token":"dG9rZW4=","indices":[{"index":"posts","health":"green","docs.count":"42"}]})
   @page_response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@page)}\r\n\r\n" <>

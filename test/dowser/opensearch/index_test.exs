@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.IndexTest do
+defmodule Dowser.OpenSearch.IndexTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.Index
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.Index
 
   @server_error ~s({"message":"boom"})
   @server_error_response "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@server_error)}\r\n\r\n" <>

@@ -1,4 +1,4 @@
-# Dowser.Opensearch
+# Dowser.OpenSearch
 
 [![Hex.pm](https://img.shields.io/hexpm/v/dowser_opensearch.svg)](https://hex.pm/packages/dowser_opensearch)
 
@@ -17,7 +17,7 @@ Add `dowser_opensearch` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:dowser_opensearch, "~> 0.1.0"}
+    {:dowser_opensearch, "~> 0.2.0"}
   ]
 end
 ```
@@ -34,10 +34,10 @@ config :dowser_client,
 ## Usage
 
 Every API function is reached through its own module — there are no shortcuts on
-the top-level Dowser.Opensearch namespace:
+the top-level Dowser.OpenSearch namespace:
 
 ```elixir
-{:ok, info} = Dowser.Opensearch.Info.info()
+{:ok, info} = Dowser.OpenSearch.Info.info()
 info["version"]["distribution"]
 #=> "opensearch"
 ```
@@ -46,7 +46,7 @@ Each function comes in two variants: the plain one returns `{:ok, body}` or
 `{:error, exception}`, and the bang one returns the body directly or raises:
 
 ```elixir
-Dowser.Opensearch.Search.search!(%{query: %{match_all: %{}}}, index: "posts")
+Dowser.OpenSearch.Search.search!(%{query: %{match_all: %{}}}, index: "posts")
 ```
 
 Required OpenSearch attributes are positional arguments; everything optional —
@@ -56,39 +56,39 @@ pipe:
 
 ```elixir
 %{query: %{term: %{"status" => "published"}}}
-|> Dowser.Opensearch.Search.search(index: "posts", params: [size: 50])
+|> Dowser.OpenSearch.Search.search(index: "posts", params: [size: 50])
 ```
 
 `HEAD` checks come as a pair where the `?` variant plays the bang role:
 
 ```elixir
-Dowser.Opensearch.Index.index_exists("posts")   #=> {:ok, true}
-Dowser.Opensearch.Index.index_exists?("posts")  #=> true
+Dowser.OpenSearch.Index.index_exists("posts")   #=> {:ok, true}
+Dowser.OpenSearch.Index.index_exists?("posts")  #=> true
 ```
 
 ## Modules
 
 | Module                                   | Tag                    |
 | ---------------------------------------- | ---------------------- |
-| `Dowser.Opensearch.Alias`                | Aliases                |
-| `Dowser.Opensearch.Cat`                  | CAT                    |
-| `Dowser.Opensearch.Cluster`              | Cluster                |
-| `Dowser.Opensearch.DanglingIndices`      | Dangling Indices       |
-| `Dowser.Opensearch.DataStream`           | Data Streams           |
-| `Dowser.Opensearch.Document`             | Document               |
-| `Dowser.Opensearch.Index`                | Index                  |
-| `Dowser.Opensearch.IndexSettings`        | Index Settings         |
-| `Dowser.Opensearch.IndexStateManagement` | Index State Management |
-| `Dowser.Opensearch.IndexTemplate`        | Index Templates        |
-| `Dowser.Opensearch.Info`                 | Info                   |
-| `Dowser.Opensearch.List`                 | List                   |
-| `Dowser.Opensearch.Mappings`             | Mappings               |
-| `Dowser.Opensearch.Reindex`              | Reindex                |
-| `Dowser.Opensearch.Search`               | Search                 |
+| `Dowser.OpenSearch.Alias`                | Aliases                |
+| `Dowser.OpenSearch.Cat`                  | CAT                    |
+| `Dowser.OpenSearch.Cluster`              | Cluster                |
+| `Dowser.OpenSearch.DanglingIndices`      | Dangling Indices       |
+| `Dowser.OpenSearch.DataStream`           | Data Streams           |
+| `Dowser.OpenSearch.Document`             | Document               |
+| `Dowser.OpenSearch.Index`                | Index                  |
+| `Dowser.OpenSearch.IndexSettings`        | Index Settings         |
+| `Dowser.OpenSearch.IndexStateManagement` | Index State Management |
+| `Dowser.OpenSearch.IndexTemplate`        | Index Templates        |
+| `Dowser.OpenSearch.Info`                 | Info                   |
+| `Dowser.OpenSearch.List`                 | List                   |
+| `Dowser.OpenSearch.Mappings`             | Mappings               |
+| `Dowser.OpenSearch.Reindex`              | Reindex                |
+| `Dowser.OpenSearch.Search`               | Search                 |
 
 ## Type casting
 
-Wire `Dowser.Opensearch.Codec` in as the decoder and encoder, and documents are
+Wire `Dowser.OpenSearch.Codec` in as the decoder and encoder, and documents are
 cast against their own index mapping — dates become `DateTime`, IPs become
 `:inet` tuples, and so on:
 
@@ -97,27 +97,27 @@ config :dowser_client,
   contexts: [
     default: [
       endpoint: "http://localhost:9200",
-      decoder: Dowser.Opensearch.Codec,
-      encoder: Dowser.Opensearch.Codec
+      decoder: Dowser.OpenSearch.Codec,
+      encoder: Dowser.OpenSearch.Codec
     ]
   ]
 ```
 
 ```elixir
-Dowser.Opensearch.Document.get!("posts", "1")["_source"]["published_at"]
+Dowser.OpenSearch.Document.get!("posts", "1")["_source"]["published_at"]
 #=> ~U[2026-08-11 00:00:00.000Z]
 ```
 
-Mappings are fetched and cached by `Dowser.Opensearch.MappingCacher`.
+Mappings are fetched and cached by `Dowser.OpenSearch.MappingCacher`.
 
 ## Streaming
 
-`Dowser.Opensearch.Streamer` walks more documents than fit in one response,
+`Dowser.OpenSearch.Streamer` walks more documents than fit in one response,
 over a point in time:
 
 ```elixir
 %{query: %{match_all: %{}}, sort: [%{"_id" => "asc"}]}
-|> Dowser.Opensearch.Streamer.stream(index: "posts")
+|> Dowser.OpenSearch.Streamer.stream(index: "posts")
 |> Stream.map(& &1["_source"])
 |> Enum.each(&process/1)
 ```
@@ -128,12 +128,12 @@ non-unique key silently skips rows. See the module documentation.
 
 ## Repositories
 
-`Dowser.Opensearch.Repository` binds the index-related functions to a fixed or
+`Dowser.OpenSearch.Repository` binds the index-related functions to a fixed or
 computed index:
 
 ```elixir
 defmodule Posts do
-  use Dowser.Opensearch.Repository, index: "posts", only: [search: [:search], document: [:get]]
+  use Dowser.OpenSearch.Repository, index: "posts", only: [search: [:search], document: [:get]]
 end
 
 Posts.search!(%{query: %{match_all: %{}}})   # searches /posts/_search

@@ -1,8 +1,8 @@
-defmodule Dowser.Opensearch.MappingCacherTest do
+defmodule Dowser.OpenSearch.MappingCacherTest do
   use ExUnit.Case, async: false
 
   alias Dowser.Client.Context
-  alias Dowser.Opensearch.MappingCacher
+  alias Dowser.OpenSearch.MappingCacher
 
   @context Context.new(endpoint: "http://x:9200")
 

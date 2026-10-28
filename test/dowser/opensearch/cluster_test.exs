@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.ClusterTest do
+defmodule Dowser.OpenSearch.ClusterTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Cluster
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
+  alias Dowser.OpenSearch.Cluster
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
 
   @health ~s({"cluster_name":"opensearch","status":"green","number_of_nodes":3})
   @health_response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@health)}\r\n\r\n" <>
@@ -44,7 +44,7 @@ defmodule Dowser.Opensearch.ClusterTest do
       assert Task.await(server).path == "/_cluster/health?wait_for_status=yellow&timeout=30s"
     end
 
-    test "wraps a non-2xx response in a Dowser.Opensearch.Error" do
+    test "wraps a non-2xx response in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} = Cluster.health(context: context(port))

@@ -1,13 +1,13 @@
-defmodule Dowser.Opensearch.RepositoryTest do
+defmodule Dowser.OpenSearch.RepositoryTest do
   use ExUnit.Case, async: true
 
-  alias Dowser.Opensearch.HTTPStub
+  alias Dowser.OpenSearch.HTTPStub
 
   defp context(port), do: HTTPStub.context(port)
   defp start_server(response \\ HTTPStub.ok_response()), do: HTTPStub.start_server(response)
 
   defmodule StaticRepo do
-    use Dowser.Opensearch.Repository,
+    use Dowser.OpenSearch.Repository,
       index: "probes",
       only: [
         search: [:search],
@@ -21,7 +21,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
   end
 
   defmodule DynamicRepo do
-    use Dowser.Opensearch.Repository,
+    use Dowser.OpenSearch.Repository,
       only: [search: [:msearch, :search], document: [:get]],
       index: &index_name/1
 
@@ -31,7 +31,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
   end
 
   defmodule ExceptRepo do
-    use Dowser.Opensearch.Repository,
+    use Dowser.OpenSearch.Repository,
       index: :probes,
       except: [:document, :index, :cat, :list, :ism, search: [:msearch]]
   end
@@ -178,16 +178,16 @@ defmodule Dowser.Opensearch.RepositoryTest do
   describe "cross-module name collisions" do
     test "no two API modules expose a repository function under the same generated name" do
       modules = [
-        Dowser.Opensearch.Alias,
-        Dowser.Opensearch.Cat,
-        Dowser.Opensearch.Document,
-        Dowser.Opensearch.Index,
-        Dowser.Opensearch.IndexSettings,
-        Dowser.Opensearch.IndexStateManagement,
-        Dowser.Opensearch.List,
-        Dowser.Opensearch.Mappings,
-        Dowser.Opensearch.Reindex,
-        Dowser.Opensearch.Search
+        Dowser.OpenSearch.Alias,
+        Dowser.OpenSearch.Cat,
+        Dowser.OpenSearch.Document,
+        Dowser.OpenSearch.Index,
+        Dowser.OpenSearch.IndexSettings,
+        Dowser.OpenSearch.IndexStateManagement,
+        Dowser.OpenSearch.List,
+        Dowser.OpenSearch.Mappings,
+        Dowser.OpenSearch.Reindex,
+        Dowser.OpenSearch.Search
       ]
 
       # Every name a repository would generate, after `renames/0` is applied —
@@ -197,7 +197,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
       assert Enum.all?(modules, &function_exported?(&1, :__repository__, 0))
 
       defmodule EveryFunction do
-        use Dowser.Opensearch.Repository, index: "probes"
+        use Dowser.OpenSearch.Repository, index: "probes"
       end
 
       assert function_exported?(EveryFunction, :search, 2)
@@ -210,7 +210,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
     test "requires the :index option" do
       assert_raise ArgumentError, ~r/:index option is required/, fn ->
         defmodule NoIndex do
-          use Dowser.Opensearch.Repository, only: [:search]
+          use Dowser.OpenSearch.Repository, only: [:search]
         end
       end
     end
@@ -218,7 +218,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
     test "rejects unknown function names" do
       assert_raise ArgumentError, ~r/unknown repository function :nope/, fn ->
         defmodule UnknownFunction do
-          use Dowser.Opensearch.Repository, index: "x", only: [search: [:nope]]
+          use Dowser.OpenSearch.Repository, index: "x", only: [search: [:nope]]
         end
       end
     end
@@ -226,7 +226,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
     test "rejects unknown module keys" do
       assert_raise ArgumentError, ~r/unknown module key :cluster/, fn ->
         defmodule UnknownModule do
-          use Dowser.Opensearch.Repository, index: "x", only: [:cluster]
+          use Dowser.OpenSearch.Repository, index: "x", only: [:cluster]
         end
       end
     end
@@ -234,7 +234,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
     test "rejects :only combined with :except" do
       assert_raise ArgumentError, ~r/mutually exclusive/, fn ->
         defmodule Both do
-          use Dowser.Opensearch.Repository, index: "x", only: [:search], except: [:document]
+          use Dowser.OpenSearch.Repository, index: "x", only: [:search], except: [:document]
         end
       end
     end
@@ -242,7 +242,7 @@ defmodule Dowser.Opensearch.RepositoryTest do
     test "rejects an invalid :index" do
       assert_raise ArgumentError, ~r/:index must be/, fn ->
         defmodule BadIndex do
-          use Dowser.Opensearch.Repository, index: 123, only: [:search]
+          use Dowser.OpenSearch.Repository, index: 123, only: [:search]
         end
       end
     end

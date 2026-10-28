@@ -1,11 +1,11 @@
-defmodule Dowser.Opensearch.MappableTest do
+defmodule Dowser.OpenSearch.MappableTest do
   use ExUnit.Case, async: true
 
-  alias Dowser.Opensearch.Mappable
+  alias Dowser.OpenSearch.Mappable
 
   # A value_fn that just returns the value unchanged, so these tests isolate
   # Mappable's own traversal/strip_blank behavior from field-level casting
-  # (covered separately by Dowser.Opensearch.CodecTest).
+  # (covered separately by Dowser.OpenSearch.CodecTest).
   defp identity(value, _mapping), do: value
 
   describe "encode/4 — strip_blank: false (default)" do

@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.MappingsTest do
+defmodule Dowser.OpenSearch.MappingsTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.Mappings
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.Mappings
 
   @server_error ~s({"message":"boom"})
   @server_error_response "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@server_error)}\r\n\r\n" <>
@@ -40,7 +40,7 @@ defmodule Dowser.Opensearch.MappingsTest do
       end
     end
 
-    test "wraps a non-2xx response in a Dowser.Opensearch.Error" do
+    test "wraps a non-2xx response in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} =

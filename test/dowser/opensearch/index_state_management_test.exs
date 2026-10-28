@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.IndexStateManagementTest do
+defmodule Dowser.OpenSearch.IndexStateManagementTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.IndexStateManagement, as: ISM
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.IndexStateManagement, as: ISM
 
   @policy ~s({"_id":"logs","_seq_no":7,"_primary_term":1,"policy":{"default_state":"hot"}})
   @policy_response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@policy)}\r\n\r\n" <>

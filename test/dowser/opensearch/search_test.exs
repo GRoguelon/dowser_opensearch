@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.SearchTest do
+defmodule Dowser.OpenSearch.SearchTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.Search
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.Search
 
   @hits ~s({"hits":{"total":{"value":1},"hits":[{"_id":"1"}]}})
   @response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@hits)}\r\n\r\n" <>
@@ -56,7 +56,7 @@ defmodule Dowser.Opensearch.SearchTest do
       assert Task.await(server).path == "/posts/_search?routing=u1"
     end
 
-    test "wraps a 404 in a Dowser.Opensearch.Error with type and reason" do
+    test "wraps a 404 in a Dowser.OpenSearch.Error with type and reason" do
       {port, server} = start_server(@not_found_response)
 
       assert {:error, %Error{status: 404, type: "index_not_found_exception", reason: reason}} =
@@ -108,7 +108,7 @@ defmodule Dowser.Opensearch.SearchTest do
       Task.await(server)
     end
 
-    test "raises the Dowser.Opensearch.Error on a non-2xx response" do
+    test "raises the Dowser.OpenSearch.Error on a non-2xx response" do
       {port, server} = start_server(@not_found_response)
 
       assert_raise Error, ~r/HTTP 404.*no such index/, fn ->

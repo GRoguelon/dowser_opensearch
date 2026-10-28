@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.CodecTest do
+defmodule Dowser.OpenSearch.CodecTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Codec
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.MappingError
+  alias Dowser.OpenSearch.Codec
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.MappingError
 
   @mapping %{
     "properties" => %{
@@ -19,7 +19,7 @@ defmodule Dowser.Opensearch.CodecTest do
   defp decode_opts(extra \\ []),
     do: context_opts(Keyword.put_new(extra, :key_fn, &Function.identity/1))
 
-  doctest Dowser.Opensearch.Codec
+  doctest Dowser.OpenSearch.Codec
 
   describe "load/2" do
     test "casts date strings and epoch millis to DateTime" do
@@ -193,7 +193,7 @@ defmodule Dowser.Opensearch.CodecTest do
 
   describe "a codec of your own" do
     defmodule CustomCodec do
-      @behaviour Dowser.Opensearch.Codec
+      @behaviour Dowser.OpenSearch.Codec
 
       @impl true
       def load(value, %{"type" => "scaled_float", "scaling_factor" => factor})
@@ -205,7 +205,7 @@ defmodule Dowser.Opensearch.CodecTest do
       # replaces that cast.
       def load(value, %{"type" => "date"}), do: {:raw, value}
 
-      def load(value, field), do: Dowser.Opensearch.Codec.load(value, field)
+      def load(value, field), do: Dowser.OpenSearch.Codec.load(value, field)
 
       @impl true
       def dump(value, %{"type" => "scaled_float", "scaling_factor" => factor})
@@ -213,7 +213,7 @@ defmodule Dowser.Opensearch.CodecTest do
         round(value * factor)
       end
 
-      def dump(value, field), do: Dowser.Opensearch.Codec.dump(value, field)
+      def dump(value, field), do: Dowser.OpenSearch.Codec.dump(value, field)
     end
 
     test "a delegated type still uses the built-in codec" do
@@ -315,7 +315,7 @@ defmodule Dowser.Opensearch.CodecTest do
         end
       end
 
-      start_supervised!({Dowser.Opensearch.MappingCacher, fetch: fetch})
+      start_supervised!({Dowser.OpenSearch.MappingCacher, fetch: fetch})
 
       body = [
         %{
@@ -747,7 +747,7 @@ defmodule Dowser.Opensearch.CodecTest do
   describe "a mapping that could not be fetched" do
     defp failing_cacher! do
       ExUnit.Callbacks.start_supervised!(
-        {Dowser.Opensearch.MappingCacher, fetch: fn _context, _index -> {:error, :timeout} end}
+        {Dowser.OpenSearch.MappingCacher, fetch: fn _context, _index -> {:error, :timeout} end}
       )
     end
 
@@ -831,14 +831,14 @@ defmodule Dowser.Opensearch.CodecTest do
 
   describe "decode/2 — opts[:codec]" do
     defmodule UpcaseCodec do
-      @behaviour Dowser.Opensearch.Codec
+      @behaviour Dowser.OpenSearch.Codec
 
       @impl true
       def load(value, %{"type" => "text"}) when is_binary(value), do: String.upcase(value)
-      def load(value, field), do: Dowser.Opensearch.Codec.load(value, field)
+      def load(value, field), do: Dowser.OpenSearch.Codec.load(value, field)
 
       @impl true
-      def dump(value, field), do: Dowser.Opensearch.Codec.dump(value, field)
+      def dump(value, field), do: Dowser.OpenSearch.Codec.dump(value, field)
     end
 
     test "values are cast through the given codec instead of the default" do
@@ -878,14 +878,14 @@ defmodule Dowser.Opensearch.CodecTest do
     end
 
     defmodule DowncaseCodec do
-      @behaviour Dowser.Opensearch.Codec
+      @behaviour Dowser.OpenSearch.Codec
 
       @impl true
-      def load(value, field), do: Dowser.Opensearch.Codec.load(value, field)
+      def load(value, field), do: Dowser.OpenSearch.Codec.load(value, field)
 
       @impl true
       def dump(value, %{"type" => "text"}) when is_binary(value), do: String.downcase(value)
-      def dump(value, field), do: Dowser.Opensearch.Codec.dump(value, field)
+      def dump(value, field), do: Dowser.OpenSearch.Codec.dump(value, field)
     end
 
     test "opts[:codec] replaces the default codec" do
@@ -977,7 +977,7 @@ defmodule Dowser.Opensearch.CodecTest do
       other_mapping = %{"properties" => %{"ip" => %{"type" => "ip"}}}
 
       start_supervised!(
-        {Dowser.Opensearch.MappingCacher,
+        {Dowser.OpenSearch.MappingCacher,
          fetch: fn _context, index ->
            case index do
              "posts" -> {:ok, @mapping}

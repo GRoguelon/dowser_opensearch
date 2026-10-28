@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.InfoTest do
+defmodule Dowser.OpenSearch.InfoTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.Info
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.Info
 
   @info ~s({"name":"node-1","cluster_name":"opensearch-cluster","version":{"distribution":"opensearch","number":"2.13.0"},"tagline":"The OpenSearch Project: https://opensearch.org/"})
   @response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@info)}\r\n\r\n" <>
@@ -33,7 +33,7 @@ defmodule Dowser.Opensearch.InfoTest do
       assert Task.await(server).path == "/?human=true"
     end
 
-    test "wraps a non-2xx response in a Dowser.Opensearch.Error" do
+    test "wraps a non-2xx response in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} = Info.info(context: context(port))
@@ -81,7 +81,7 @@ defmodule Dowser.Opensearch.InfoTest do
       Task.await(server)
     end
 
-    test "wraps any other status in a Dowser.Opensearch.Error" do
+    test "wraps any other status in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} = Info.ping(context: context(port))

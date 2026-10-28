@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.DataStreamTest do
+defmodule Dowser.OpenSearch.DataStreamTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.DataStream
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
+  alias Dowser.OpenSearch.DataStream
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
 
   @server_error ~s({"message":"boom"})
   @server_error_response "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@server_error)}\r\n\r\n" <>
@@ -80,7 +80,7 @@ defmodule Dowser.Opensearch.DataStreamTest do
       assert {:error, %ArgumentError{}} = DataStream.delete_data_stream(nil)
     end
 
-    test "wraps a non-2xx response in a Dowser.Opensearch.Error" do
+    test "wraps a non-2xx response in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} =

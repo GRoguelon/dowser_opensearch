@@ -1,30 +1,30 @@
-defmodule Dowser.Opensearch.DocumentTest do
+defmodule Dowser.OpenSearch.DocumentTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.BulkError
-  alias Dowser.Opensearch.Document
-  alias Dowser.Opensearch.HTTPStub
+  alias Dowser.OpenSearch.BulkError
+  alias Dowser.OpenSearch.Document
+  alias Dowser.OpenSearch.HTTPStub
 
   defmodule UpcaseCodec do
-    @behaviour Dowser.Opensearch.Codec
+    @behaviour Dowser.OpenSearch.Codec
 
     @impl true
     def load(value, %{"type" => "text"}) when is_binary(value), do: String.upcase(value)
-    def load(value, field), do: Dowser.Opensearch.Codec.load(value, field)
+    def load(value, field), do: Dowser.OpenSearch.Codec.load(value, field)
 
     @impl true
-    def dump(value, field), do: Dowser.Opensearch.Codec.dump(value, field)
+    def dump(value, field), do: Dowser.OpenSearch.Codec.dump(value, field)
   end
 
   defmodule ExclaimCodec do
-    @behaviour Dowser.Opensearch.Codec
+    @behaviour Dowser.OpenSearch.Codec
 
     @impl true
     def load(value, %{"type" => "text"}) when is_binary(value), do: value <> "!"
-    def load(value, field), do: Dowser.Opensearch.Codec.load(value, field)
+    def load(value, field), do: Dowser.OpenSearch.Codec.load(value, field)
 
     @impl true
-    def dump(value, field), do: Dowser.Opensearch.Codec.dump(value, field)
+    def dump(value, field), do: Dowser.OpenSearch.Codec.dump(value, field)
   end
 
   defp context(port), do: HTTPStub.context(port)
@@ -305,7 +305,7 @@ defmodule Dowser.Opensearch.DocumentTest do
                Document.get("posts", "1",
                  context: [
                    endpoint: "http://127.0.0.1:#{port}",
-                   decoder: {Dowser.Opensearch.Codec, codec: ExclaimCodec}
+                   decoder: {Dowser.OpenSearch.Codec, codec: ExclaimCodec}
                  ]
                )
 
@@ -322,7 +322,7 @@ defmodule Dowser.Opensearch.DocumentTest do
                  codec: ExclaimCodec,
                  context: [
                    endpoint: "http://127.0.0.1:#{port}",
-                   decoder: {Dowser.Opensearch.Codec, codec: UpcaseCodec}
+                   decoder: {Dowser.OpenSearch.Codec, codec: UpcaseCodec}
                  ]
                )
 

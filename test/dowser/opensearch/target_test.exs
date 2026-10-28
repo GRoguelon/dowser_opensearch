@@ -1,7 +1,7 @@
-defmodule Dowser.Opensearch.TargetTest do
+defmodule Dowser.OpenSearch.TargetTest do
   use ExUnit.Case, async: true
 
-  alias Dowser.Opensearch.Target
+  alias Dowser.OpenSearch.Target
 
   doctest Target
 

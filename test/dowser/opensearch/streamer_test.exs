@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.StreamerTest do
+defmodule Dowser.OpenSearch.StreamerTest do
   use ExUnit.Case, async: false
 
   alias Dowser.Client.HTTP.Stub
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.Streamer
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.Streamer
 
   @context [endpoint: "http://x:9200"]
 
@@ -83,7 +83,7 @@ defmodule Dowser.Opensearch.StreamerTest do
 
       assert Exception.message(error) =~ ~s(sort: [%{"_id" => "asc"}])
       assert Exception.message(error) =~ "_shard_doc"
-      assert Exception.message(error) =~ "Dowser.Opensearch.Streamer"
+      assert Exception.message(error) =~ "Dowser.OpenSearch.Streamer"
     end
 
     test "refuses an empty sort too" do
@@ -257,7 +257,7 @@ defmodule Dowser.Opensearch.StreamerTest do
         Stub.json(404, %{"error" => %{"type" => "search_phase_execution_exception"}})
       end)
 
-      assert_raise Dowser.Opensearch.Error, ~r/search_phase_execution_exception/, fn ->
+      assert_raise Dowser.OpenSearch.Error, ~r/search_phase_execution_exception/, fn ->
         %{query: %{}, sort: @sort}
         |> Streamer.stream(pit: "dead", context: @context)
         |> Enum.to_list()
@@ -488,7 +488,7 @@ defmodule Dowser.Opensearch.StreamerTest do
 
       stub_pages(requests, %{nil => [[hit(1)]]})
 
-      context = @context ++ [decoder: Dowser.Opensearch.Codec]
+      context = @context ++ [decoder: Dowser.OpenSearch.Codec]
 
       assert [decoded] =
                %{query: %{}, size: 10, sort: @sort}
@@ -528,7 +528,7 @@ defmodule Dowser.Opensearch.StreamerTest do
           Stub.json(500, %{"error" => %{"type" => "circuit_breaking_exception"}})
       end)
 
-      assert_raise Dowser.Opensearch.Error, ~r/circuit_breaking_exception/, fn ->
+      assert_raise Dowser.OpenSearch.Error, ~r/circuit_breaking_exception/, fn ->
         %{query: %{}, sort: @sort}
         |> Streamer.stream(index: "posts", context: @context)
         |> Enum.to_list()
@@ -540,7 +540,7 @@ defmodule Dowser.Opensearch.StreamerTest do
         Stub.json(403, %{"error" => %{"type" => "security_exception"}})
       end)
 
-      assert_raise Dowser.Opensearch.Error, ~r/security_exception/, fn ->
+      assert_raise Dowser.OpenSearch.Error, ~r/security_exception/, fn ->
         %{query: %{}, sort: @sort}
         |> Streamer.stream(index: "posts", context: @context)
         |> Enum.to_list()

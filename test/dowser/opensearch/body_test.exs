@@ -1,7 +1,7 @@
-defmodule Dowser.Opensearch.BodyTest do
+defmodule Dowser.OpenSearch.BodyTest do
   use ExUnit.Case, async: true
 
-  alias Dowser.Opensearch.Body
+  alias Dowser.OpenSearch.Body
 
   describe "value/3" do
     test "reads a string key" do

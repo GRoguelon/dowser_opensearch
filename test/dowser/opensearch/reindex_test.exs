@@ -1,9 +1,9 @@
-defmodule Dowser.Opensearch.ReindexTest do
+defmodule Dowser.OpenSearch.ReindexTest do
   use ExUnit.Case, async: false
 
-  alias Dowser.Opensearch.Error
-  alias Dowser.Opensearch.HTTPStub
-  alias Dowser.Opensearch.Reindex
+  alias Dowser.OpenSearch.Error
+  alias Dowser.OpenSearch.HTTPStub
+  alias Dowser.OpenSearch.Reindex
 
   @task ~s({"took":42,"timed_out":false,"total":100,"created":100,"failures":[]})
   @response "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{byte_size(@task)}\r\n\r\n" <>
@@ -36,7 +36,7 @@ defmodule Dowser.Opensearch.ReindexTest do
       assert Task.await(server).path == "/_reindex?wait_for_completion=false"
     end
 
-    test "wraps a non-2xx response in a Dowser.Opensearch.Error" do
+    test "wraps a non-2xx response in a Dowser.OpenSearch.Error" do
       {port, server} = start_server(@server_error_response)
 
       assert {:error, %Error{status: 500}} = Reindex.reindex(%{}, context: context(port))
