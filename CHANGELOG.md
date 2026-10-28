@@ -17,6 +17,7 @@ the API itself is unchanged.
   `Dowser.OpenSearch.*`; update the aliases and calls in your code. The
   application name, its `config :dowser_opensearch, ...` keys and the
   `[:dowser_opensearch, :mapping, :failure]` telemetry event are unchanged.
+  See the [upgrade guide](guides/upgrading/v0.2.md) for the steps.
 
 ## [0.1.0] - 2026-09-26
 
